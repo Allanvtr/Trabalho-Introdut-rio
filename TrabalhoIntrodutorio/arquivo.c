@@ -128,29 +128,29 @@ void escreveRegistro(FILE *binario, FILE *CSV, t_header *cabecalho, t_data *dado
         if (strlen(dado->country) > 0) {
             fwrite(&cabecalho->codDescreveContry, sizeof(char), 1, binario);
             fwrite(dado->country, sizeof(char), strlen(dado->country), binario);
+            fwrite(&separador, sizeof(char), 1, binario);
         }
-        fwrite(&separador, sizeof(char), 1, binario);
 
         // Campo attackType
         if (strlen(dado->attackType) > 0) {
             fwrite(&cabecalho->codDescreveType, sizeof(char), 1, binario);
             fwrite(dado->attackType, sizeof(char), strlen(dado->attackType), binario);
+            fwrite(&separador, sizeof(char), 1, binario);
         }
-        fwrite(&separador, sizeof(char), 1, binario);
 
         // Campo targetIndustry
         if (strlen(dado->targetIndustry) > 0) {
             fwrite(&cabecalho->codDescreveTargetIndustry, sizeof(char), 1, binario);
             fwrite(dado->targetIndustry, sizeof(char), strlen(dado->targetIndustry), binario);
+            fwrite(&separador, sizeof(char), 1, binario);
         }
-        fwrite(&separador, sizeof(char), 1, binario);
 
         // Campo defenseMechanism
         if (strlen(dado->defenseMechanism) > 0) {
             fwrite(&cabecalho->codDescreveDefense, sizeof(char), 1, binario);
             fwrite(dado->defenseMechanism, sizeof(char), strlen(dado->defenseMechanism), binario);
+            fwrite(&separador, sizeof(char), 1, binario);
         }
-        fwrite(&separador, sizeof(char), 1, binario);
 
 
         free(dado->country);
