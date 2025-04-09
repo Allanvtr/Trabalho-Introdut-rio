@@ -30,7 +30,7 @@ typedef struct data{
     char *targetIndustry;
     char *defenseMechanism;
     char removido;
-    long long int tamanhoRegistro;
+    int tamanhoRegistro;
     long long int prox;
 } t_data;
 
@@ -38,7 +38,8 @@ typedef struct data{
 //---------------- Funções para criação do arquivo binário ---------------------
 void createTable(char *nomeArquivoBinario, char *nomeArquivoCSV);
 void escreveCabecalho(FILE *binario, t_header *cabecalho);
-void escreveRegistro(FILE *binario, FILE *CSV, t_header *cabecalho, t_data *dado);
+void lerRegistro(FILE *binario, FILE *CSV, t_header *cabecalho, t_data *dado);
+void escreveRegistro(FILE *binario, t_header *cabecalho, t_data *dado);
 
 
 
@@ -50,9 +51,14 @@ void inicializarDado(t_data *dado, char **tokens);
 //---------------- Funções auxiliares ---------------------
 char **scan_csv(char *linha, int tam);
 void binarioNaTela(char *nomeArquivoBinario);
+
+
+//------------- Funções para debug (apagar depois)--------------
+void compararArquivosHex(const char *arq1, const char *arq2);
 void printHeader(t_header cabecalho);
 void printRegistro(t_data *dado);
 void lerCabecalho(FILE *binario);
+
 
 
 #endif
