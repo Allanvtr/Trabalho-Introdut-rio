@@ -3,108 +3,13 @@
 #include <string.h>
 #include "arquivo.h"
 
-//---------------- Funções de inicialização dos dados ---------------------
-
-void inicializarCabecalho (t_header *cabecalho, char **tokens){
-    cabecalho->status = '1';
-    cabecalho->topo = -1;
-    cabecalho->proxByteOffset = 0;//recebe o byte offset o final do arquivo
-    cabecalho->nroRegArq = 0;
-    cabecalho->nroRegRem = 0;
-    cabecalho->codDescreveContry = '1';
-    cabecalho->codDescreveType = '2';
-    cabecalho->codDescreveTargetIndustry = '3';
-    cabecalho->codDescreveDefense = '4';
-
-    strcpy(cabecalho->descreveIdentificador, tokens[0]);
-    strcpy(cabecalho->descreveYear, tokens[1]);
-    strcpy(cabecalho->descreveFinancialLoss, tokens[2]);
-    strcpy(cabecalho->descreveCountry, tokens[3]);
-    strcpy(cabecalho->descreveType, tokens[4]);
-    strcpy(cabecalho->descreveTargetIndustry, tokens[5]);
-    strcpy(cabecalho->descreveDefense, tokens[6]);
-
-    return;
-}
-
-void inicializarDado(t_data *dado, char **tokens){
-    dado->tamanhoRegistro = 0;
-
-    // Tamanho dos campos fixos
-    dado->idAttack = atoi(tokens[0]);
-    dado->tamanhoRegistro += sizeof(dado->idAttack);
-
-    if (atoi(tokens[1]) > 0) dado->year = atoi(tokens[1]);
-    else dado->year = -1;
-    dado->tamanhoRegistro += sizeof(dado->year);
-    //if (tokens[1][0] == '\0') printf("sim %d", dado->year + 1);
-
-    if (strtof(tokens[2], NULL) > 0) dado->financialLoss = strtof(tokens[2], NULL);
-    else dado->financialLoss = -1;
-    dado->tamanhoRegistro += sizeof(dado->financialLoss);
-    //if (tokens[2][0] == '\0') printf("sim %f", dado->financialLoss + 1);
-
-    dado->prox = -1;
-    dado->tamanhoRegistro += sizeof(dado->prox);
-
-    // Campos variáveis
-    dado->country = (char*)malloc((strlen(tokens[3]) + 1) * sizeof(char));
-    strcpy(dado->country, tokens[3]);
-    if (strlen(dado->country) > 0) {
-        dado->tamanhoRegistro += 1; // indicador
-        dado->tamanhoRegistro += strlen(dado->country);
-        dado->tamanhoRegistro += 1; // separador
-    }
-
-    dado->attackType = (char*)malloc((strlen(tokens[4]) + 1) * sizeof(char));
-    strcpy(dado->attackType, tokens[4]);
-    if (strlen(dado->attackType) > 0) {
-        dado->tamanhoRegistro += 1;
-        dado->tamanhoRegistro += strlen(dado->attackType);
-        dado->tamanhoRegistro += 1;
-    }
-
-    dado->targetIndustry = (char*)malloc((strlen(tokens[5]) + 1) * sizeof(char));
-    strcpy(dado->targetIndustry, tokens[5]);
-    if (strlen(dado->targetIndustry) > 0) {
-        dado->tamanhoRegistro += 1;
-        dado->tamanhoRegistro += strlen(dado->targetIndustry);
-        dado->tamanhoRegistro += 1;
-    }
-
-    dado->defenseMechanism = (char*)malloc((strlen(tokens[6]) + 1) * sizeof(char));
-    strcpy(dado->defenseMechanism, tokens[6]);
-    if (strlen(dado->defenseMechanism) > 0) {
-        dado->tamanhoRegistro += 1;
-        dado->tamanhoRegistro += strlen(dado->defenseMechanism);
-        dado->tamanhoRegistro += 1;
-    }
-
-    dado->removido = '0';
-
-
-    return;
-}
-
 
 //---------------- Funções para criação do arquivo binário ---------------------
 
 
-void createTable(char *nomeArquivoBinario, char *nomeArquivoCSV){
+void createTable(FILE *binario, FILE *CSV){
     t_header cabecalho;
     t_data dado;
-
-    FILE *CSV = fopen(nomeArquivoCSV, "r");
-    if (!CSV){
-        printf("Falha no processamento do arquivo.");
-        return;
-    }
-
-    FILE *binario = fopen(nomeArquivoBinario, "wb");
-    if (!binario){
-        printf("Falha no processamento do arquivo.");
-        return;
-    }
 
     // Leitura do arquivo e escrita do cabeçalho
     char linha[300];
@@ -122,13 +27,11 @@ void createTable(char *nomeArquivoBinario, char *nomeArquivoCSV){
 
 
     // Inicialização e escrita dos registros
-    lerRegistro(binario, CSV, &cabecalho, &dado);
+    lerRegistroCSV(binario, CSV, &cabecalho, &dado);
 
     fclose(CSV);
-    fclose(binario);
 
     // Atualiza o cabeçalho com nro de Registros e ProxByteOffSet
-    binario = fopen(nomeArquivoBinario, "rb+");
     fseek(binario, 0, SEEK_END);
     cabecalho.proxByteOffset = ftell(binario);
     fseek(binario, 0, SEEK_SET);
@@ -140,7 +43,7 @@ void createTable(char *nomeArquivoBinario, char *nomeArquivoCSV){
 
 
 
-void lerRegistro(FILE *binario, FILE *CSV, t_header *cabecalho, t_data *dado){
+void lerRegistroCSV(FILE *binario, FILE *CSV, t_header *cabecalho, t_data *dado){
     char linha[500];
     char **tokens;
 
@@ -161,10 +64,7 @@ void lerRegistro(FILE *binario, FILE *CSV, t_header *cabecalho, t_data *dado){
         escreveRegistro(binario, cabecalho, dado);
 
         // Liberar memória alocada
-        free(dado->country);
-        free(dado->attackType);
-        free(dado->defenseMechanism);
-        free(dado->targetIndustry);
+        freeRegistro(dado);
         free(tokens);
     }
 
@@ -233,6 +133,338 @@ void escreveCabecalho(FILE *binario, t_header *cabecalho){
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+//---------------------------- Funções para o select -----------------------------
+
+void selectSQL(FILE *binario, t_header *cabecalho, t_data *registro){
+    lerCabecalhoBIN(binario, cabecalho);
+
+    for(int i = 0; i < cabecalho->nroRegArq; i++){
+        lerRegistroBIN(binario, registro);
+        printRegistro(cabecalho, registro);
+
+        freeRegistro(registro);
+    }
+}
+
+
+
+void freeRegistro(t_data *registro){
+    free(registro->country);
+    free(registro->attackType);
+    free(registro->defenseMechanism);
+    free(registro->targetIndustry);
+
+    return;
+}
+
+
+
+
+void lerRegistroBIN(FILE *binario, t_data *registro) {
+    // Lendo campos de tamanho fixo
+    fread(&registro->removido, sizeof(char), 1, binario);
+    fread(&registro->tamanhoRegistro, sizeof(int), 1, binario);
+    fread(&registro->prox, sizeof(long long int), 1, binario);
+    fread(&registro->idAttack, sizeof(int), 1, binario);
+    fread(&registro->year, sizeof(int), 1, binario);
+    fread(&registro->financialLoss, sizeof(float), 1, binario);
+
+    //Inicializando campos variados
+    registro->country = NULL;
+    registro->defenseMechanism = NULL;
+    registro->targetIndustry = NULL;
+    registro->attackType = NULL;
+
+    // Lendo campo de tamanho variável
+    char cod;
+    int tam;
+
+    // Laço para leitura dos campos
+    for (int i = 0; i < 4; i++){
+        fread(&cod, sizeof(char), 1, binario); // código do campo
+        switch (cod) {
+            case '1': {
+                tam = calcTamanhoCampo(binario);
+                fseek(binario, -(tam + 1), SEEK_CUR); // volta pro início da string
+
+                // Alocação e leitura
+                registro->country = (char*)malloc((tam + 1) * sizeof(char));
+                fread(registro->country, sizeof(char), tam, binario);
+                registro->country[tam] = '\0';
+
+                // Prepara o ponteiro para a próxima leitura
+                fseek(binario, 1, SEEK_CUR);
+
+                break;
+            }
+
+            case '2':
+                tam = calcTamanhoCampo(binario);
+                fseek(binario, -(tam + 1), SEEK_CUR);
+
+                registro->attackType = (char*)malloc((tam + 1) * sizeof(char));
+                fread(registro->attackType, sizeof(char), tam, binario);
+                registro->attackType[tam] = '\0';
+                fseek(binario, 1, SEEK_CUR);
+
+                break;
+
+            case '3':
+                tam = calcTamanhoCampo(binario);
+                fseek(binario, -(tam + 1), SEEK_CUR);
+
+                registro->targetIndustry = (char*)malloc((tam + 1) * sizeof(char));
+                fread(registro->targetIndustry, sizeof(char), tam, binario);
+                registro->targetIndustry[tam] = '\0';
+                fseek(binario, 1, SEEK_CUR);
+
+                break;
+
+            case '4':
+                tam = calcTamanhoCampo(binario);
+                fseek(binario, -(tam + 1), SEEK_CUR);
+
+                registro->defenseMechanism = (char*)malloc((tam + 1) * sizeof(char));
+                fread(registro->defenseMechanism, sizeof(char), tam, binario);
+                registro->defenseMechanism[tam] = '\0';
+                fseek(binario, 1, SEEK_CUR);
+
+                break;
+
+            default:
+                // Se chegou em default, significa que tem algum campo vazio e estamos no final do registro
+                // Encerramos o loop e voltamos o ponteiro para a leitura do próximo reg
+                i = 4;
+                fseek(binario, -1, SEEK_CUR);
+        }
+    }
+
+
+    return;
+}
+
+void lerCabecalhoBIN(FILE *binario, t_header *cabecalho) {
+
+    // Leitura dos campos fixos
+    fread(&cabecalho->status, sizeof(char), 1, binario);
+    fread(&cabecalho->topo, sizeof(long long int), 1, binario);
+    fread(&cabecalho->proxByteOffset, sizeof(long long int), 1, binario);
+    fread(&cabecalho->nroRegArq, sizeof(int), 1, binario);
+    fread(&cabecalho->nroRegRem, sizeof(int), 1, binario);
+
+    // Leitura dos campos de string (você pode ajustar o tamanho conforme seus dados)
+    fread(cabecalho->descreveIdentificador, sizeof(char), 23, binario);
+    cabecalho->descreveIdentificador[23] = '\0';
+
+    fread(cabecalho->descreveYear, sizeof(char), 27, binario);
+    cabecalho->descreveYear[27] = '\0';
+
+    fread(cabecalho->descreveFinancialLoss, sizeof(char), 28, binario);
+    cabecalho->descreveFinancialLoss[28] = '\0';
+
+    fread(&cabecalho->codDescreveContry, sizeof(char), 1, binario);
+    fread(cabecalho->descreveCountry, sizeof(char), 26, binario);
+    cabecalho->descreveCountry[26] = '\0';
+
+    fread(&cabecalho->codDescreveType, sizeof(char), 1, binario);
+    fread(cabecalho->descreveType, sizeof(char), 38, binario);
+    cabecalho->descreveType[38] = '\0';
+
+    fread(&cabecalho->codDescreveTargetIndustry, sizeof(char), 1, binario);
+    fread(cabecalho->descreveTargetIndustry, sizeof(char), 38, binario);
+    cabecalho->descreveTargetIndustry[38] = '\0';
+
+    fread(&cabecalho->codDescreveDefense, sizeof(char), 1, binario);
+    fread(cabecalho->descreveDefense, sizeof(char), 67, binario);
+    cabecalho->descreveDefense[67] = '\0';
+
+    // Print dos campos
+    /*printf("Status: %c\n", cabecalho->status);
+    printf("Topo: %lld\n", cabecalho->topo);
+    printf("ProxByteOffset: %lld\n", cabecalho->proxByteOffset);
+    printf("NroRegArq: %d\n", cabecalho->nroRegArq);
+    printf("NroRegRem: %d\n", cabecalho->nroRegRem);
+
+    printf("Descreve Identificador: %s\n", cabecalho->descreveIdentificador);
+    printf("Descreve Year: %s\n", cabecalho->descreveYear);
+    printf("Descreve Financial Loss: %s\n", cabecalho->descreveFinancialLoss);
+    printf("Cod Country: %c\n", cabecalho->codDescreveContry);
+    printf("Descreve Country: %s\n", cabecalho->descreveCountry);
+    printf("Cod Type: %c\n", cabecalho->codDescreveType);
+    printf("Descreve Type: %s\n", cabecalho->descreveType);
+    printf("Cod Target Industry: %c\n", cabecalho->codDescreveTargetIndustry);
+    printf("Descreve Target Industry: %s\n", cabecalho->descreveTargetIndustry);
+    printf("Cod Defense: %c\n", cabecalho->codDescreveDefense);
+    printf("Descreve Defense: %s\n", cabecalho->descreveDefense);*/
+
+    return;
+}
+
+
+
+void printRegistro(t_header *cabecalho, t_data *registro){
+
+    printf("%s: ", cabecalho->descreveIdentificador);
+    printf("%d\n", registro->idAttack);
+
+    printf("%s: ", cabecalho->descreveYear);
+    if (registro->year == -1) printf("NADA CONSTA\n");
+    else printf("%d\n", registro->year);
+
+    printf("%s: ", cabecalho->descreveCountry);
+    if (registro->country == NULL) printf("NADA CONSTA\n");
+    else printf("%s\n", registro->country);
+
+    printf("%s: ", cabecalho->descreveTargetIndustry);
+    if (registro->targetIndustry == NULL) printf("NADA CONSTA\n");
+    else printf("%s\n", registro->targetIndustry);
+
+    printf("%s: ", cabecalho->descreveType);
+    if (registro->attackType == NULL) printf("NADA CONSTA\n");
+    else printf("%s\n", registro->attackType);
+
+    printf("%s: ", cabecalho->descreveFinancialLoss);
+    if (registro->financialLoss == -1) printf("NADA CONSTA\n");
+    else printf("%.2f\n", registro->financialLoss);
+
+    printf("%s: ", cabecalho->descreveDefense);
+    if (registro->defenseMechanism == NULL) printf("NADA CONSTA\n");
+    else printf("%s\n", registro->defenseMechanism);
+
+    printf("\n");
+
+    return;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//---------------- Funções de inicialização dos dados ---------------------
+
+void inicializarCabecalho (t_header *cabecalho, char **tokens){
+    cabecalho->status = '1';
+    cabecalho->topo = -1;
+    cabecalho->proxByteOffset = 0;//recebe o byte offset o final do arquivo
+    cabecalho->nroRegArq = 0;
+    cabecalho->nroRegRem = 0;
+    cabecalho->codDescreveContry = '1';
+    cabecalho->codDescreveType = '2';
+    cabecalho->codDescreveTargetIndustry = '3';
+    cabecalho->codDescreveDefense = '4';
+
+    strcpy(cabecalho->descreveIdentificador, tokens[0]);
+    strcpy(cabecalho->descreveYear, tokens[1]);
+    strcpy(cabecalho->descreveFinancialLoss, tokens[2]);
+    strcpy(cabecalho->descreveCountry, tokens[3]);
+    strcpy(cabecalho->descreveType, tokens[4]);
+    strcpy(cabecalho->descreveTargetIndustry, tokens[5]);
+    strcpy(cabecalho->descreveDefense, tokens[6]);
+
+    return;
+}
+
+void inicializarDado(t_data *dado, char **tokens){
+    dado->tamanhoRegistro = 0;
+
+    // Tamanho dos campos fixos
+    dado->idAttack = atoi(tokens[0]);
+    dado->tamanhoRegistro += sizeof(dado->idAttack);
+
+    if (atoi(tokens[1]) > 0) dado->year = atoi(tokens[1]);
+    else dado->year = -1;
+    dado->tamanhoRegistro += sizeof(dado->year);
+
+    if (strtof(tokens[2], NULL) > 0) dado->financialLoss = strtof(tokens[2], NULL);
+    else dado->financialLoss = -1;
+    dado->tamanhoRegistro += sizeof(dado->financialLoss);
+
+    dado->prox = -1;
+    dado->tamanhoRegistro += sizeof(dado->prox);
+
+
+    // Campos variáveis
+    dado->country = (char*)malloc((strlen(tokens[3]) + 1) * sizeof(char));
+    strcpy(dado->country, tokens[3]);
+    if (strlen(dado->country) > 0) {
+        dado->tamanhoRegistro += 1; // indicador
+        dado->tamanhoRegistro += strlen(dado->country);
+        dado->tamanhoRegistro += 1; // separador
+    }
+
+    dado->attackType = (char*)malloc((strlen(tokens[4]) + 1) * sizeof(char));
+    strcpy(dado->attackType, tokens[4]);
+    if (strlen(dado->attackType) > 0) {
+        dado->tamanhoRegistro += 1;
+        dado->tamanhoRegistro += strlen(dado->attackType);
+        dado->tamanhoRegistro += 1;
+    }
+
+    dado->targetIndustry = (char*)malloc((strlen(tokens[5]) + 1) * sizeof(char));
+    strcpy(dado->targetIndustry, tokens[5]);
+    if (strlen(dado->targetIndustry) > 0) {
+        dado->tamanhoRegistro += 1;
+        dado->tamanhoRegistro += strlen(dado->targetIndustry);
+        dado->tamanhoRegistro += 1;
+    }
+
+    dado->defenseMechanism = (char*)malloc((strlen(tokens[6]) + 1) * sizeof(char));
+    strcpy(dado->defenseMechanism, tokens[6]);
+    if (strlen(dado->defenseMechanism) > 0) {
+        dado->tamanhoRegistro += 1;
+        dado->tamanhoRegistro += strlen(dado->defenseMechanism);
+        dado->tamanhoRegistro += 1;
+    }
+
+    dado->removido = '0';
+
+    return;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 //---------------- Funções auxiliares ---------------------
 
 
@@ -297,107 +529,26 @@ char **scan_csv(char *linha, int tam) {
 
 
 
+int calcTamanhoCampo(FILE *binario) {
+    int tam = 0;
+    char aux;
+
+    while (1) {
+        fread(&aux, sizeof(char), 1, binario);
+        if (aux == '|') break;
+        tam++;
+    }
+
+    return tam;
+}
+
+
+
+
 //------------- Funções para debug (apagar depois)--------------
 
-void printRegistro(t_data *dado){
 
-    printf("Removido: %c\n", dado->removido);
-    printf("Byte Offset Prox: %d | Tamanho: %lu\n", dado->prox, sizeof(dado->prox));
-    printf("ID do ataque: %d | Tamanho: %lu bytes\n", dado->idAttack, sizeof(dado->idAttack));
-    printf("Ano: %d | Tamanho: %lu bytes\n", dado->year, sizeof(dado->year));
-    printf("Prejuizo financeiro: %.2f | Tamanho: %lu bytes\n", dado->financialLoss, sizeof(dado->financialLoss));
-
-    printf("Pais: %s | Tamanho: %lu bytes\n", dado->country, strlen(dado->country));
-    printf("Tipo de ataque: %s | Tamanho: %lu bytes\n", dado->attackType, strlen(dado->attackType));
-    printf("Setor-alvo: %s | Tamanho: %lu bytes\n", dado->targetIndustry,strlen(dado->targetIndustry));
-    printf("Mecanismo de defesa: %s | Tamanho: %lu bytes\n", dado->defenseMechanism, strlen(dado->defenseMechanism));
-
-    printf("Tamanho total do registro: %lld bytes\n", dado->tamanhoRegistro);
-}
-
-
-void printHeader(t_header cabecalho) {
-    printf("status: '%c' | tamanho: %zu byte(s)\n", cabecalho.status, sizeof(cabecalho.status));
-    printf("topo: %d | tamanho: %zu byte(s)\n", cabecalho.topo, sizeof(cabecalho.topo));
-    printf("proxByteOffset: %lld | tamanho: %zu byte(s)\n", cabecalho.proxByteOffset, sizeof(cabecalho.proxByteOffset));
-    printf("nroRegArq: %d | tamanho: %zu byte(s)\n", cabecalho.nroRegArq, sizeof(cabecalho.nroRegArq));
-    printf("nroRegRem: %d | tamanho: %zu byte(s)\n", cabecalho.nroRegRem, sizeof(cabecalho.nroRegRem));
-    printf("descreveIdentificador: \"%s\" | tamanho: %zu byte(s)\n", cabecalho.descreveIdentificador, strlen(cabecalho.descreveIdentificador));
-    printf("descreveYear: \"%s\" | tamanho: %zu byte(s)\n", cabecalho.descreveYear, strlen(cabecalho.descreveYear));
-    printf("descreveFinancialLoss: \"%s\" | tamanho: %zu byte(s)\n", cabecalho.descreveFinancialLoss, strlen(cabecalho.descreveFinancialLoss));
-    printf("codDescreveContry: '%c' | tamanho: %zu byte(s)\n", cabecalho.codDescreveContry, sizeof(cabecalho.codDescreveContry));
-    printf("descreveCountry: \"%s\" | tamanho: %zu byte(s)\n", cabecalho.descreveCountry, strlen(cabecalho.descreveCountry));
-    printf("codDescreveType: '%c' | tamanho: %zu byte(s)\n", cabecalho.codDescreveType, sizeof(cabecalho.codDescreveType));
-    printf("descreveType: \"%s\" | tamanho: %zu byte(s)\n", cabecalho.descreveType, strlen(cabecalho.descreveType));
-    printf("codDescreveTargetIndustry: '%c' | tamanho: %zu byte(s)\n", cabecalho.codDescreveTargetIndustry, sizeof(cabecalho.codDescreveTargetIndustry));
-    printf("descreveTargetIndustry: \"%s\" | tamanho: %zu byte(s)\n", cabecalho.descreveTargetIndustry, strlen(cabecalho.descreveTargetIndustry));
-    printf("codDescreveDefense: '%c' | tamanho: %zu byte(s)\n", cabecalho.codDescreveDefense, sizeof(cabecalho.codDescreveDefense));
-    printf("descreveDefense: \"%s\" | tamanho: %zu byte(s)\n", cabecalho.descreveDefense, strlen(cabecalho.descreveDefense));
-}
-
-
-void lerCabecalho(FILE *binario) {
-    char status;
-    long long int topo, proxByteOffset;
-    int nroRegArq, nroRegRem;
-
-    char descreveIdentificador[100], descreveYear[100], descreveFinancialLoss[100];
-    char codDescreveContry, codDescreveType, codDescreveTargetIndustry, codDescreveDefense;
-    char descreveCountry[100], descreveType[100], descreveTargetIndustry[100], descreveDefense[100];
-
-    // Leitura dos campos fixos
-    fread(&status, sizeof(char), 1, binario);
-    fread(&topo, sizeof(long long int), 1, binario);
-    fread(&proxByteOffset, sizeof(long long int), 1, binario);
-    fread(&nroRegArq, sizeof(int), 1, binario);
-    fread(&nroRegRem, sizeof(int), 1, binario);
-
-    // Leitura dos campos de string (você pode ajustar o tamanho conforme seus dados)
-    fread(descreveIdentificador, sizeof(char), 23, binario);
-    descreveIdentificador[23] = '\0'; // garantir \0
-    fread(descreveYear, sizeof(char), 27, binario);
-    descreveYear[27] = '\0';
-    fread(descreveFinancialLoss, sizeof(char), 28, binario);
-    descreveFinancialLoss[28] = '\0';
-
-    fread(&codDescreveContry, sizeof(char), 1, binario);
-    fread(descreveCountry, sizeof(char), 26, binario);
-    descreveCountry[26] = '\0';
-
-    fread(&codDescreveType, sizeof(char), 1, binario);
-    fread(descreveType, sizeof(char), 38, binario);
-    descreveType[38] = '\0';
-
-    fread(&codDescreveTargetIndustry, sizeof(char), 1, binario);
-    fread(descreveTargetIndustry, sizeof(char), 38, binario);
-    descreveTargetIndustry[38] = '\0';
-
-    fread(&codDescreveDefense, sizeof(char), 1, binario);
-    fread(descreveDefense, sizeof(char), 67, binario);
-    descreveDefense[67] = '\0';
-
-    // Print dos campos
-    printf("Status: %c\n", status);
-    printf("Topo: %lld\n", topo);
-    printf("ProxByteOffset: %lld\n", proxByteOffset);
-    printf("NroRegArq: %d\n", nroRegArq);
-    printf("NroRegRem: %d\n", nroRegRem);
-
-    printf("Descreve Identificador: %s\n", descreveIdentificador);
-    printf("Descreve Year: %s\n", descreveYear);
-    printf("Descreve Financial Loss: %s\n", descreveFinancialLoss);
-    printf("Cod Country: %c\n", codDescreveContry);
-    printf("Descreve Country: %s\n", descreveCountry);
-    printf("Cod Type: %c\n", codDescreveType);
-    printf("Descreve Type: %s\n", descreveType);
-    printf("Cod Target Industry: %c\n", codDescreveTargetIndustry);
-    printf("Descreve Target Industry: %s\n", descreveTargetIndustry);
-    printf("Cod Defense: %c\n", codDescreveDefense);
-    printf("Descreve Defense: %s\n", descreveDefense);
-}
-
-
-
+// Função que compara byte a byte o arquivo gerado e o arquivo teste
 void compararArquivosHex(const char *arq1, const char *arq2) {
     FILE *f1 = fopen(arq1, "rb");
     FILE *f2 = fopen(arq2, "rb");

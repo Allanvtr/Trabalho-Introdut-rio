@@ -36,28 +36,45 @@ typedef struct data{
 
 
 //---------------- Funções para criação do arquivo binário ---------------------
-void createTable(char *nomeArquivoBinario, char *nomeArquivoCSV);
+void createTable(FILE *binario, FILE *CSV);
 void escreveCabecalho(FILE *binario, t_header *cabecalho);
-void lerRegistro(FILE *binario, FILE *CSV, t_header *cabecalho, t_data *dado);
+void lerRegistroCSV(FILE *binario, FILE *CSV, t_header *cabecalho, t_data *dado);
 void escreveRegistro(FILE *binario, t_header *cabecalho, t_data *dado);
 
 
 
-//---------------- Funções de inicialização dos dados ---------------------
+//---------------------------- Funções para o select -----------------------------
+void printRegistro(t_header *cabecalho, t_data *registro);
+void selectSQL(FILE *binario, t_header *cabecalho, t_data *registro);
+
+
+
+//----------------------- Funções de inicialização dos dados ---------------------
 void inicializarCabecalho(t_header *cabecalho, char **tokens);
 void inicializarDado(t_data *dado, char **tokens);
 
 
+
+
+//------------------- Leitura do arquivo binário ---------------------
+void lerCabecalhoBIN(FILE *binario, t_header *cabecalho);
+void lerRegistroBIN (FILE *binario, t_data *registro);
+
+
+
+
 //---------------- Funções auxiliares ---------------------
 char **scan_csv(char *linha, int tam);
+int calcTamanhoCampo(FILE * binario);
+void freeRegistro(t_data *registro);
 void binarioNaTela(char *nomeArquivoBinario);
+
+
 
 
 //------------- Funções para debug (apagar depois)--------------
 void compararArquivosHex(const char *arq1, const char *arq2);
-void printHeader(t_header cabecalho);
-void printRegistro(t_data *dado);
-void lerCabecalho(FILE *binario);
+
 
 
 
