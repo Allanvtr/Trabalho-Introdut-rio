@@ -3,6 +3,12 @@
 #include <string.h>
 #include "arquivo.h"
 
+
+
+// 14712657 - Allan Vitor de Souza Silva
+
+
+
 int main(){
     char nomeArquivoCSV[30], nomeArquivoBinario[30];
     t_header cabecalho;
@@ -14,6 +20,7 @@ int main(){
 
     scanf("%c", &funcao);
 
+    // Create Table
     if (funcao == '1'){
         scanf ("%s %s", nomeArquivoCSV, nomeArquivoBinario);
 
@@ -28,28 +35,40 @@ int main(){
             printf("Falha no processamento do arquivo.");
             return 0;
         }
+
         createTable(binario, CSV);
         binarioNaTela(nomeArquivoBinario);
     }
 
+
+    // Select From
     else if (funcao == '2'){
         scanf("%s", nomeArquivoBinario);
+
         FILE *binario = fopen(nomeArquivoBinario, "rb");
         if (!binario){
             printf("Falha no processamento do arquivo.");
             return 0;
         }
-        //lerCabecalhoBIN(binario, &cabecalho);
-        //lerRegistroBIN(binario, &registro);
-        selectSQL(binario, &cabecalho, &registro);
+
+        selectFrom(binario, &cabecalho, &registro);
         fclose(binario);
     }
 
-    else if (funcao == '3'){
 
+    // Select from where
+    else if (funcao == '3') {
+        int quant;
+        scanf("%s %d", nomeArquivoBinario, &quant);
+        FILE *binario = fopen(nomeArquivoBinario, "rb");
+        if (!binario) {
+            printf("Falha no processamento do arquivo.");
+            return 0;
+        }
+
+        consultasWhere(binario, quant, &cabecalho, &registro);
+        fclose(binario);
     }
-
-    //compararArquivosHex(nomeArquivoBinario, "ataque2.bin");
 
 
 

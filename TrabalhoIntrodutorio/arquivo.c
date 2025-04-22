@@ -1,12 +1,48 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "arquivo.h"
+
+
+// 14712657 - Allan Vitor de Souza Silva
+
 
 
 //---------------- Funções para criação do arquivo binário ---------------------
 
 
+// Separação do CSV em tokens
+char **scan_csv(char *linha, int tam) {
+
+    // Aloca um vetor de ponteiros para string
+    char **tokens = (char **)malloc(tam * sizeof(char *));
+    if (!tokens) {
+        printf("Erro ao alocar memória.\n");
+        return NULL;
+    }
+
+    // Separa as strings pela vírgula
+    int i = 0;
+    char *ptr = linha;
+    char *inicio = linha;
+    while (*ptr) {
+        if (*ptr == ',') {
+            *ptr = '\0';
+            tokens[i++] = inicio;
+            inicio = ptr + 1;
+        }
+        ptr++;
+    }
+    tokens[i++] = inicio;
+
+    return tokens;
+}
+
+
+
+
+// Cria tabela armazena os registros e cabeçalho
 void createTable(FILE *binario, FILE *CSV){
     t_header cabecalho;
     t_data dado;
@@ -17,6 +53,13 @@ void createTable(FILE *binario, FILE *CSV){
 
 
     // Leitura do arquivo CSV (Separa as colunas em tokens)
+    //tokens[0] -> idAttack
+    //tokens[1] -> year
+    //tokens[2] -> financialLoss
+    //tokens[3] -> country
+    //tokens[4] -> attackType
+    //tokens[5] -> targetIndustry
+    //tokens[6] -> defenseMechanism
     char **tokens = scan_csv(linha, 7);
 
 
@@ -43,8 +86,34 @@ void createTable(FILE *binario, FILE *CSV){
 
 
 
+
+void escreveCabecalho(FILE *binario, t_header *cabecalho){
+    fwrite(&cabecalho->status, sizeof(char), 1, binario);
+    fwrite(&cabecalho->topo, sizeof(long long int), 1, binario);
+    fwrite(&cabecalho->proxByteOffset, sizeof(long long int), 1, binario);
+    fwrite(&cabecalho->nroRegArq, sizeof(int), 1, binario);
+    fwrite(&cabecalho->nroRegRem, sizeof(int), 1, binario);
+    fwrite(&cabecalho->descreveIdentificador, sizeof(char), strlen(cabecalho->descreveIdentificador), binario);
+    fwrite(&cabecalho->descreveYear, sizeof(char), strlen(cabecalho->descreveYear), binario);
+    fwrite(&cabecalho->descreveFinancialLoss, sizeof(char), strlen(cabecalho->descreveFinancialLoss), binario);
+    fwrite(&cabecalho->codDescreveContry, sizeof(char), 1, binario);
+    fwrite(&cabecalho->descreveCountry, sizeof(char), strlen(cabecalho->descreveCountry), binario);
+    fwrite(&cabecalho->codDescreveType, sizeof(char), 1, binario);
+    fwrite(&cabecalho->descreveType, sizeof(char), strlen(cabecalho->descreveType), binario);
+    fwrite(&cabecalho->codDescreveTargetIndustry, sizeof(char), 1, binario);
+    fwrite(&cabecalho->descreveTargetIndustry, sizeof(char), strlen(cabecalho->descreveTargetIndustry), binario);
+    fwrite(&cabecalho->codDescreveDefense, sizeof(char), 1, binario);
+    fwrite(&cabecalho->descreveDefense, sizeof(char), strlen(cabecalho->descreveDefense), binario);
+
+    return;
+}
+
+
+
+
+
 void lerRegistroCSV(FILE *binario, FILE *CSV, t_header *cabecalho, t_data *dado){
-    char linha[500];
+    char linha[200];
     char **tokens;
 
     // Ignora a linha do cabeçalho
@@ -72,6 +141,7 @@ void lerRegistroCSV(FILE *binario, FILE *CSV, t_header *cabecalho, t_data *dado)
 }
 
 
+// Escreve o registro no arquivo binario
 void escreveRegistro(FILE *binario, t_header *cabecalho, t_data *dado){
     char separador = '|';
 
@@ -82,6 +152,7 @@ void escreveRegistro(FILE *binario, t_header *cabecalho, t_data *dado){
     fwrite(&dado->year, sizeof(int), 1, binario);
     fwrite(&dado->financialLoss, sizeof(float), 1, binario);
 
+    // Verifica se o campo não é vazio
     if (strlen(dado->country) > 0) {
         fwrite(&cabecalho->codDescreveContry, sizeof(char), 1, binario);
         fwrite(dado->country, sizeof(char), strlen(dado->country), binario);
@@ -111,26 +182,109 @@ void escreveRegistro(FILE *binario, t_header *cabecalho, t_data *dado){
 
 
 
-void escreveCabecalho(FILE *binario, t_header *cabecalho){
-    fwrite(&cabecalho->status, sizeof(char), 1, binario);
-    fwrite(&cabecalho->topo, sizeof(long long int), 1, binario);
-    fwrite(&cabecalho->proxByteOffset, sizeof(long long int), 1, binario);
-    fwrite(&cabecalho->nroRegArq, sizeof(int), 1, binario);
-    fwrite(&cabecalho->nroRegRem, sizeof(int), 1, binario);
-    fwrite(&cabecalho->descreveIdentificador, sizeof(char), strlen(cabecalho->descreveIdentificador), binario);
-    fwrite(&cabecalho->descreveYear, sizeof(char), strlen(cabecalho->descreveYear), binario);
-    fwrite(&cabecalho->descreveFinancialLoss, sizeof(char), strlen(cabecalho->descreveFinancialLoss), binario);
-    fwrite(&cabecalho->codDescreveContry, sizeof(char), 1, binario);
-    fwrite(&cabecalho->descreveCountry, sizeof(char), strlen(cabecalho->descreveCountry), binario);
-    fwrite(&cabecalho->codDescreveType, sizeof(char), 1, binario);
-    fwrite(&cabecalho->descreveType, sizeof(char), strlen(cabecalho->descreveType), binario);
-    fwrite(&cabecalho->codDescreveTargetIndustry, sizeof(char), 1, binario);
-    fwrite(&cabecalho->descreveTargetIndustry, sizeof(char), strlen(cabecalho->descreveTargetIndustry), binario);
-    fwrite(&cabecalho->codDescreveDefense, sizeof(char), 1, binario);
-    fwrite(&cabecalho->descreveDefense, sizeof(char), strlen(cabecalho->descreveDefense), binario);
+
+
+
+
+
+
+
+
+
+
+
+
+//---------------- Funções de inicialização dos dados ---------------------
+
+void inicializarCabecalho (t_header *cabecalho, char **tokens){
+    cabecalho->status = '1';
+    cabecalho->topo = -1;
+    cabecalho->proxByteOffset = 0;
+    cabecalho->nroRegArq = 0;
+    cabecalho->nroRegRem = 0;
+    cabecalho->codDescreveContry = '1';
+    cabecalho->codDescreveType = '2';
+    cabecalho->codDescreveTargetIndustry = '3';
+    cabecalho->codDescreveDefense = '4';
+
+    strcpy(cabecalho->descreveIdentificador, tokens[0]);
+    strcpy(cabecalho->descreveYear, tokens[1]);
+    strcpy(cabecalho->descreveFinancialLoss, tokens[2]);
+    strcpy(cabecalho->descreveCountry, tokens[3]);
+    strcpy(cabecalho->descreveType, tokens[4]);
+    strcpy(cabecalho->descreveTargetIndustry, tokens[5]);
+    strcpy(cabecalho->descreveDefense, tokens[6]);
 
     return;
 }
+
+
+
+void inicializarDado(t_data *dado, char **tokens){
+    dado->tamanhoRegistro = 0;
+
+    // Tamanho dos campos fixos
+    dado->idAttack = atoi(tokens[0]);
+    dado->tamanhoRegistro += sizeof(dado->idAttack);
+
+    if (atoi(tokens[1]) >= 0) dado->year = atoi(tokens[1]);
+    else dado->year = -1;
+    dado->tamanhoRegistro += sizeof(dado->year);
+
+    if (strtof(tokens[2], NULL) >= 0) dado->financialLoss = strtof(tokens[2], NULL);
+    else dado->financialLoss = -1;
+    dado->tamanhoRegistro += sizeof(dado->financialLoss);
+
+    dado->prox = -1;
+    dado->tamanhoRegistro += sizeof(dado->prox);
+
+
+    // Campos variáveis
+    dado->country = (char*)malloc((strlen(tokens[3]) + 1) * sizeof(char));
+    strcpy(dado->country, tokens[3]);
+    if (strlen(dado->country) > 0) {
+        dado->tamanhoRegistro += 1; // indicador
+        dado->tamanhoRegistro += strlen(dado->country);
+        dado->tamanhoRegistro += 1; // separador
+    }
+
+    dado->attackType = (char*)malloc((strlen(tokens[4]) + 1) * sizeof(char));
+    strcpy(dado->attackType, tokens[4]);
+    if (strlen(dado->attackType) > 0) {
+        dado->tamanhoRegistro += 1;
+        dado->tamanhoRegistro += strlen(dado->attackType);
+        dado->tamanhoRegistro += 1;
+    }
+
+    dado->targetIndustry = (char*)malloc((strlen(tokens[5]) + 1) * sizeof(char));
+    strcpy(dado->targetIndustry, tokens[5]);
+    if (strlen(dado->targetIndustry) > 0) {
+        dado->tamanhoRegistro += 1;
+        dado->tamanhoRegistro += strlen(dado->targetIndustry);
+        dado->tamanhoRegistro += 1;
+    }
+
+    dado->defenseMechanism = (char*)malloc((strlen(tokens[6]) + 1) * sizeof(char));
+    strcpy(dado->defenseMechanism, tokens[6]);
+    if (strlen(dado->defenseMechanism) > 0) {
+        dado->tamanhoRegistro += 1;
+        dado->tamanhoRegistro += strlen(dado->defenseMechanism);
+        dado->tamanhoRegistro += 1;
+    }
+
+    dado->removido = '0';
+
+    return;
+}
+
+
+
+
+
+
+
+
+
 
 
 
@@ -148,7 +302,7 @@ void escreveCabecalho(FILE *binario, t_header *cabecalho){
 
 //---------------------------- Funções para o select -----------------------------
 
-void selectSQL(FILE *binario, t_header *cabecalho, t_data *registro){
+void selectFrom(FILE *binario, t_header *cabecalho, t_data *registro){
     lerCabecalhoBIN(binario, cabecalho);
 
     for(int i = 0; i < cabecalho->nroRegArq; i++){
@@ -157,17 +311,6 @@ void selectSQL(FILE *binario, t_header *cabecalho, t_data *registro){
 
         freeRegistro(registro);
     }
-}
-
-
-
-void freeRegistro(t_data *registro){
-    free(registro->country);
-    free(registro->attackType);
-    free(registro->defenseMechanism);
-    free(registro->targetIndustry);
-
-    return;
 }
 
 
@@ -256,6 +399,8 @@ void lerRegistroBIN(FILE *binario, t_data *registro) {
     return;
 }
 
+
+
 void lerCabecalhoBIN(FILE *binario, t_header *cabecalho) {
 
     // Leitura dos campos fixos
@@ -291,24 +436,6 @@ void lerCabecalhoBIN(FILE *binario, t_header *cabecalho) {
     fread(cabecalho->descreveDefense, sizeof(char), 67, binario);
     cabecalho->descreveDefense[67] = '\0';
 
-    // Print dos campos
-    /*printf("Status: %c\n", cabecalho->status);
-    printf("Topo: %lld\n", cabecalho->topo);
-    printf("ProxByteOffset: %lld\n", cabecalho->proxByteOffset);
-    printf("NroRegArq: %d\n", cabecalho->nroRegArq);
-    printf("NroRegRem: %d\n", cabecalho->nroRegRem);
-
-    printf("Descreve Identificador: %s\n", cabecalho->descreveIdentificador);
-    printf("Descreve Year: %s\n", cabecalho->descreveYear);
-    printf("Descreve Financial Loss: %s\n", cabecalho->descreveFinancialLoss);
-    printf("Cod Country: %c\n", cabecalho->codDescreveContry);
-    printf("Descreve Country: %s\n", cabecalho->descreveCountry);
-    printf("Cod Type: %c\n", cabecalho->codDescreveType);
-    printf("Descreve Type: %s\n", cabecalho->descreveType);
-    printf("Cod Target Industry: %c\n", cabecalho->codDescreveTargetIndustry);
-    printf("Descreve Target Industry: %s\n", cabecalho->descreveTargetIndustry);
-    printf("Cod Defense: %c\n", cabecalho->codDescreveDefense);
-    printf("Descreve Defense: %s\n", cabecalho->descreveDefense);*/
 
     return;
 }
@@ -366,86 +493,140 @@ void printRegistro(t_header *cabecalho, t_data *registro){
 
 
 
-//---------------- Funções de inicialização dos dados ---------------------
+//---------------------------- Funções Select Where --------------------------------
 
-void inicializarCabecalho (t_header *cabecalho, char **tokens){
-    cabecalho->status = '1';
-    cabecalho->topo = -1;
-    cabecalho->proxByteOffset = 0;//recebe o byte offset o final do arquivo
-    cabecalho->nroRegArq = 0;
-    cabecalho->nroRegRem = 0;
-    cabecalho->codDescreveContry = '1';
-    cabecalho->codDescreveType = '2';
-    cabecalho->codDescreveTargetIndustry = '3';
-    cabecalho->codDescreveDefense = '4';
+void consultasWhere(FILE *binario, int quant, t_header *cabecalho, t_data *registro) {
+    int tam;
 
-    strcpy(cabecalho->descreveIdentificador, tokens[0]);
-    strcpy(cabecalho->descreveYear, tokens[1]);
-    strcpy(cabecalho->descreveFinancialLoss, tokens[2]);
-    strcpy(cabecalho->descreveCountry, tokens[3]);
-    strcpy(cabecalho->descreveType, tokens[4]);
-    strcpy(cabecalho->descreveTargetIndustry, tokens[5]);
-    strcpy(cabecalho->descreveDefense, tokens[6]);
+    // Matriz que vai armazenar as consultas
+    char **where = (char**)malloc(quant * sizeof(char*));
+    for (int i = 0; i < quant; i++) {
+        where[i] = (char*)malloc(100 * sizeof(char));
+        scanf(" %[^\n]", where[i]);
+        where[i][strcspn(where[i], "\n")] = '\0';
+    }
+
+    // Processa e separa a consultas em tokens e chama a função para busca dos dados
+    for (int i = 0; i < quant; i++) {
+
+        // Separa em tokens cada palavra da consulta
+        //ex: 1 country "CHINA"
+        // tokens[0] = 1; tokens[1] = country; tokens[2] = "CHINA"
+        char **tokens = scan_campos(where[i], &tam);
+
+        for (int j = 2; j < tam; j += 2) {
+            remove_aspas(tokens[j]);
+        }
+
+        rewind(binario);
+        selectWhere(binario, tokens, cabecalho, registro, tam);
+        free(tokens);
+    }
+
+    for (int i = 0; i < quant; i++) {
+        free(where[i]);
+    }
+    free(where);
+}
+
+
+
+
+void selectWhere(FILE *binario, char **tokens, t_header *cabecalho, t_data *registro, int qntTokens){
+    lerCabecalhoBIN(binario, cabecalho);
+    int verifica, flag = 0;
+
+    for (int i = 0; i < cabecalho->nroRegArq; i++){
+        lerRegistroBIN(binario, registro);
+
+        // Verifica se o registro se enquadra na busca
+        verifica = comparaCampos(tokens, registro, qntTokens);
+        if (verifica == 1) {
+            printRegistro(cabecalho, registro);
+            flag = 1;
+        }
+
+        freeRegistro(registro);
+    }
+
+    if (flag == 0) printf("Registro inexistente.\n\n");
+
+    printf("**********\n");
 
     return;
 }
 
-void inicializarDado(t_data *dado, char **tokens){
-    dado->tamanhoRegistro = 0;
 
-    // Tamanho dos campos fixos
-    dado->idAttack = atoi(tokens[0]);
-    dado->tamanhoRegistro += sizeof(dado->idAttack);
+int comparaCampos(char **tokens, t_data *registro, int qntTokens){
 
-    if (atoi(tokens[1]) > 0) dado->year = atoi(tokens[1]);
-    else dado->year = -1;
-    dado->tamanhoRegistro += sizeof(dado->year);
-
-    if (strtof(tokens[2], NULL) > 0) dado->financialLoss = strtof(tokens[2], NULL);
-    else dado->financialLoss = -1;
-    dado->tamanhoRegistro += sizeof(dado->financialLoss);
-
-    dado->prox = -1;
-    dado->tamanhoRegistro += sizeof(dado->prox);
-
-
-    // Campos variáveis
-    dado->country = (char*)malloc((strlen(tokens[3]) + 1) * sizeof(char));
-    strcpy(dado->country, tokens[3]);
-    if (strlen(dado->country) > 0) {
-        dado->tamanhoRegistro += 1; // indicador
-        dado->tamanhoRegistro += strlen(dado->country);
-        dado->tamanhoRegistro += 1; // separador
+    for (int i = 1; i < qntTokens; i += 2){
+        if(strcmp(tokens[i], "idAttack") == 0){
+            if (registro->idAttack == -1 ||  atoi(tokens[i + 1]) != registro->idAttack) return 0;
+        }
+        else if(strcmp(tokens[i], "year") == 0){
+            if (registro->year == -1 ||  atoi(tokens[i + 1]) != registro->year) return 0;
+        }
+        else if(strcmp(tokens[i], "country") == 0){
+            if (registro->country == NULL ||  strcmp(registro->country, tokens[i + 1]) != 0) return 0;
+        }
+        else if(strcmp(tokens[i], "attackType") == 0){
+            if (registro->attackType == NULL ||  strcmp(registro->attackType, tokens[i + 1]) != 0) return 0;
+        }
+        else if(strcmp(tokens[i], "targetIndustry") == 0){
+            if (registro->targetIndustry == NULL ||  strcmp(registro->targetIndustry, tokens[i + 1]) != 0) return 0;
+        }
+        else if(strcmp(tokens[i], "defenseMechanism") == 0){
+            if (registro->defenseMechanism == NULL ||  strcmp(registro->defenseMechanism, tokens[i + 1]) != 0) return 0;
+        }
+        else if(strcmp(tokens[i], "financialLoss") == 0){
+            if (registro->financialLoss == -1 || fabs(atof(tokens[i + 1]) - registro->financialLoss) > 0.001) return 0;
+        }
     }
 
-    dado->attackType = (char*)malloc((strlen(tokens[4]) + 1) * sizeof(char));
-    strcpy(dado->attackType, tokens[4]);
-    if (strlen(dado->attackType) > 0) {
-        dado->tamanhoRegistro += 1;
-        dado->tamanhoRegistro += strlen(dado->attackType);
-        dado->tamanhoRegistro += 1;
-    }
-
-    dado->targetIndustry = (char*)malloc((strlen(tokens[5]) + 1) * sizeof(char));
-    strcpy(dado->targetIndustry, tokens[5]);
-    if (strlen(dado->targetIndustry) > 0) {
-        dado->tamanhoRegistro += 1;
-        dado->tamanhoRegistro += strlen(dado->targetIndustry);
-        dado->tamanhoRegistro += 1;
-    }
-
-    dado->defenseMechanism = (char*)malloc((strlen(tokens[6]) + 1) * sizeof(char));
-    strcpy(dado->defenseMechanism, tokens[6]);
-    if (strlen(dado->defenseMechanism) > 0) {
-        dado->tamanhoRegistro += 1;
-        dado->tamanhoRegistro += strlen(dado->defenseMechanism);
-        dado->tamanhoRegistro += 1;
-    }
-
-    dado->removido = '0';
-
-    return;
+    return 1;
 }
+
+
+
+char **scan_campos(char *linha, int *tam) {
+    int count = 0;
+    char *ptr = linha;
+
+    // Conta os espaços (quantos tokens)
+    while (*ptr) {
+        if (*ptr == ' ') {
+            count++;
+        }
+        ptr++;
+    }
+    count++; // número de tokens = número de espaços + 1
+
+    // Aloca vetor de ponteiros para strings
+    char **tokens = (char **)malloc(count * sizeof(char *));
+    if (!tokens) {
+        printf("Erro ao alocar memória.\n");
+        *tam = 0;
+        return NULL;
+    }
+
+    // Divide a linha em tokens separando por espaço
+    int i = 0;
+    ptr = linha;
+    char *inicio = linha;
+    while (*ptr) {
+        if (*ptr == ' ') {
+            *ptr = '\0';
+            tokens[i++] = inicio;
+            inicio = ptr + 1;
+        }
+        ptr++;
+    }
+    tokens[i++] = inicio;
+
+    *tam = count; // define a quantidade no ponteiro
+    return tokens;
+}
+
 
 
 
@@ -499,33 +680,14 @@ void binarioNaTela(char *nomeArquivoBinario) { /* Você não precisa entender o 
 
 
 
-char **scan_csv(char *linha, int tam) {
-
-    // Aloca um vetor de ponteiros para string
-    char **tokens = (char **)malloc(tam * sizeof(char *));
-    if (!tokens) {
-        printf("Erro ao alocar memória.\n");
-        return NULL;
+void remove_aspas(char *str) {
+    int len = strlen(str);
+    if (len >= 2 && str[0] == '"' && str[len - 1] == '"') {
+        // Move os caracteres uma posição à esquerda
+        memmove(str, str + 1, len - 2);
+        str[len - 2] = '\0'; // Termina a string
     }
-
-    // Separa as strings pela vírgula
-    int i = 0;
-    char *ptr = linha;
-    char *inicio = linha;
-    while (*ptr) {
-        if (*ptr == ',') {
-            *ptr = '\0';
-            tokens[i++] = inicio;
-            inicio = ptr + 1;
-        }
-        ptr++;
-    }
-    tokens[i++] = inicio;
-
-    return tokens;
 }
-
-
 
 
 
@@ -544,57 +706,13 @@ int calcTamanhoCampo(FILE *binario) {
 
 
 
+void freeRegistro(t_data *registro){
+    free(registro->country);
+    free(registro->attackType);
+    free(registro->defenseMechanism);
+    free(registro->targetIndustry);
 
-//------------- Funções para debug (apagar depois)--------------
-
-
-// Função que compara byte a byte o arquivo gerado e o arquivo teste
-void compararArquivosHex(const char *arq1, const char *arq2) {
-    FILE *f1 = fopen(arq1, "rb");
-    FILE *f2 = fopen(arq2, "rb");
-
-    if (!f1 || !f2) {
-        perror("Erro ao abrir arquivos");
-        return;
-    }
-
-    unsigned char buffer1[16], buffer2[16];
-    size_t bytesLidos1, bytesLidos2;
-    long pos = 0;
-    int diferencas = 0;
-
-    while (1) {
-        bytesLidos1 = fread(buffer1, 1, 16, f1);
-        bytesLidos2 = fread(buffer2, 1, 16, f2);
-
-        if (bytesLidos1 == 0 && bytesLidos2 == 0)
-            break;
-
-        int diferente = 0;
-        for (size_t i = 0; i < 16; i++) {
-            if (i >= bytesLidos1 || i >= bytesLidos2) break;
-            if (buffer1[i] != buffer2[i]) {
-                diferente = 1;
-                break;
-            }
-        }
-
-        if (diferente) {
-            printf("%08lX\n", pos);
-            diferencas++;
-        }
-
-        pos += 16;
-    }
-
-    if (diferencas == 0) {
-        printf("Arquivos são idênticos!\n");
-    } else {
-        printf("Total de blocos diferentes: %d\n", diferencas);
-    }
-
-    fclose(f1);
-    fclose(f2);
+    return;
 }
 
 
